@@ -38,6 +38,19 @@ const TABLE_HEADERS = [
   { key: 'publishDate', header: 'Publish Date' },
 ];
 
+const CURRENT_USER = 'Dr. B Ramesh';
+
+const getGeneratedSummary = (mod) => {
+  if (mod.summary) return mod.summary;
+
+  const moduleName = mod.moduleName || 'This module';
+  const audience = mod.targetGroup ? ` for ${mod.targetGroup}` : '';
+  const category = mod.category ? ` in ${mod.category}` : '';
+  const service = mod.serviceComponent ? ` through a ${mod.serviceComponent.toLowerCase()} format` : '';
+
+  return `${moduleName} supports learners${audience}${category}${service}. It focuses on guided activities, reflection, and practical takeaways that help participants build awareness and confidence.`;
+};
+
 const ModulesPage = () => {
   const navigate = useNavigate();
   const [modules, setModules] = useState([]);
@@ -48,6 +61,7 @@ const ModulesPage = () => {
   const [programFilter, setProgramFilter] = useState('');
   const [filters, setFilters] = useState({});
   const [showFilters, setShowFilters] = useState(false);
+  const [activeView, setActiveView] = useState('all');
 
   const [createDrawerOpen, setCreateDrawerOpen] = useState(false);
   const [viewDrawerOpen, setViewDrawerOpen] = useState(false);
@@ -61,6 +75,7 @@ const ModulesPage = () => {
       const params = {
         ...(search && { search }),
         ...(programFilter && { program: programFilter }),
+        ...(activeView === 'my' && { collaborators: CURRENT_USER }),
         ...filters,
       };
       const res = await modulesService.getAll(params);
@@ -71,7 +86,7 @@ const ModulesPage = () => {
     } finally {
       setLoading(false);
     }
-  }, [search, programFilter, filters]);
+  }, [search, programFilter, activeView, filters]);
 
   useEffect(() => {
     const timeout = setTimeout(fetchModules, 300);
@@ -92,6 +107,33 @@ const ModulesPage = () => {
     setSelectedModule(mod);
     setViewDrawerOpen(false);
     setEditDrawerOpen(true);
+  };
+
+  const handleDuplicateModule = async (mod) => {
+    if (!mod) return;
+
+    const duplicatePayload = {
+      moduleName: `${mod.moduleName} Copy`,
+      author: mod.author || CURRENT_USER,
+      program: mod.program || '',
+      category: mod.category || '',
+      targetGroup: mod.targetGroup || '',
+      serviceComponent: mod.serviceComponent || '',
+      summary: mod.summary || '',
+      tags: mod.tags || [],
+      notes: mod.notes || [],
+      collaborators: mod.collaborators || [],
+      action: 'draft',
+    };
+
+    try {
+      const res = await modulesService.create(duplicatePayload);
+      await fetchModules();
+      setSelectedModule(res.data);
+      setViewDrawerOpen(true);
+    } catch (err) {
+      setError(err.message);
+    }
   };
 
   const rows = modules.map((mod) => ({
@@ -140,15 +182,19 @@ const ModulesPage = () => {
           </div>
 
           <div className="modules-tabs" role="tablist" aria-label="Module views">
-            {['All Modules', 'My Modules'].map((tab, i) => (
+            {[
+              { key: 'all', label: 'All Modules' },
+              { key: 'my', label: 'My Modules' },
+            ].map((tab) => (
               <button
-                key={tab}
-                className={`modules-tabs__button${i === 0 ? ' modules-tabs__button--active' : ''}`}
+                key={tab.key}
+                className={`modules-tabs__button${activeView === tab.key ? ' modules-tabs__button--active' : ''}`}
                 type="button"
                 role="tab"
-                aria-selected={i === 0}
+                aria-selected={activeView === tab.key}
+                onClick={() => setActiveView(tab.key)}
               >
-                {tab}
+                {tab.label}
               </button>
             ))}
           </div>
@@ -278,6 +324,7 @@ const ModulesPage = () => {
                                       {cell.info.header === 'moduleName' ? (
                                         <button
                                           className="module-name-link"
+                                          type="button"
                                           onClick={() => handleViewModule(row.id)}
                                         >
                                           {cell.value}
@@ -302,7 +349,7 @@ const ModulesPage = () => {
                                       <OverflowMenuItem
                                         itemText="Submit for Review"
                                         onClick={async () => {
-                                          await modulesService.update(row.id, { status: 'Pending Review' });
+                                          await modulesService.update(row.id, { status: 'Submitted' });
                                           fetchModules();
                                         }}
                                       />
@@ -320,7 +367,7 @@ const ModulesPage = () => {
                                             <span className="ai-pill">AI</span>
                                           </div>
                                           <p className="generated-summary__text">
-                                            {rawMod.summary || 'No generated summary available.'}
+                                            {getGeneratedSummary(rawMod)}
                                           </p>
                                         </div>
                                         <div className="expanded-meta">
@@ -367,6 +414,40 @@ const ModulesPage = () => {
                     </Table>
                   </div>
                 </div>
+
+                <div className="modules-mobile-list" aria-label="Modules list">
+                  {loading ? (
+                    <div className="modules-mobile-state">
+                      <Loading small description="Loading modules..." withOverlay={false} />
+                    </div>
+                  ) : modules.length === 0 ? (
+                    <div className="modules-mobile-state">
+                      No modules found. Create your first module!
+                    </div>
+                  ) : (
+                    modules.map((mod) => (
+                      <button
+                        key={mod._id}
+                        className="module-card"
+                        type="button"
+                        onClick={() => handleViewModule(mod._id)}
+                      >
+                        <span className="module-card__topline">
+                          <span>{mod.program || 'No program'}</span>
+                          <StatusBadge status={mod.status} />
+                        </span>
+                        <span className="module-card__title">{mod.moduleName}</span>
+                        <span className="module-card__summary">
+                          {getGeneratedSummary(mod)}
+                        </span>
+                        <span className="module-card__meta">
+                          <span>{mod.author || '-'}</span>
+                          <span>{mod.program || '-'}</span>
+                        </span>
+                      </button>
+                    ))
+                  )}
+                </div>
               </div>
             )}
           </DataTable>
@@ -394,6 +475,7 @@ const ModulesPage = () => {
         onClose={() => setViewDrawerOpen(false)}
         module={selectedModule}
         onEdit={() => selectedModule && handleEditModule(selectedModule)}
+        onDuplicate={() => handleDuplicateModule(selectedModule)}
       />
     </div>
   );

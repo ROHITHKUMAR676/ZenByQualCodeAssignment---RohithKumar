@@ -5,6 +5,8 @@ const parseQueryList = (value) => (
   Array.isArray(value) ? value : value.split(',')
 ).map((item) => item.trim()).filter(Boolean);
 
+const submittedStatuses = ['Submitted', 'Pending Review'];
+
 // GET /modules
 const getModules = async (req, res) => {
   try {
@@ -73,7 +75,7 @@ const getModules = async (req, res) => {
       .skip(skip)
       .limit(parseInt(limit));
 
-    const liveCount = await Module.countDocuments({ ...filter, status: 'Active' });
+    const liveCount = await Module.countDocuments({ ...filter, status: { $in: ['Approved', 'Active'] } });
     const draftCount = await Module.countDocuments({ ...filter, status: 'Draft' });
 
     res.json({
@@ -115,8 +117,8 @@ const createModule = async (req, res) => {
   try {
     const { action, ...moduleData } = req.body;
 
-    if (action === 'create') {
-      moduleData.status = 'Active';
+    if (action === 'submit') {
+      moduleData.status = 'Submitted';
       moduleData.publishDate = new Date();
     } else {
       moduleData.status = 'Draft';
@@ -156,19 +158,28 @@ const updateModule = async (req, res) => {
 // GET /modules/review-queue
 const getReviewQueue = async (req, res) => {
   try {
-    const { status, program, search } = req.query;
+    const { status, program, search, role = 'user' } = req.query;
     const filter = {};
 
-    // Review queue shows submitted, needs changes, and approved
+    const statusMap = role === 'admin'
+      ? {
+          pending: submittedStatuses,
+          approved: ['Approved'],
+          rejected: ['Rejected'],
+        }
+      : {
+          submitted: submittedStatuses,
+          needsChanges: ['Needs Changes'],
+          approved: ['Approved'],
+        };
+    const defaultStatuses = role === 'admin'
+      ? [...submittedStatuses, 'Approved', 'Rejected']
+      : [...submittedStatuses, 'Needs Changes', 'Approved'];
+
     if (status) {
-      const statusMap = {
-        submitted: ['Pending Review'],
-        needsChanges: ['Needs Changes'],
-        approved: ['Approved'],
-      };
-      filter.status = { $in: statusMap[status] || ['Pending Review', 'Needs Changes', 'Approved'] };
+      filter.status = { $in: statusMap[status] || defaultStatuses };
     } else {
-      filter.status = { $in: ['Pending Review', 'Needs Changes', 'Approved'] };
+      filter.status = { $in: defaultStatuses };
     }
 
     if (program) filter.program = program;
@@ -176,25 +187,29 @@ const getReviewQueue = async (req, res) => {
       filter.$or = [
         { moduleName: { $regex: search, $options: 'i' } },
         { author: { $regex: search, $options: 'i' } },
+        { category: { $regex: search, $options: 'i' } },
       ];
     }
 
     const modules = await Module.find(filter).sort({ createdAt: -1 });
 
-    const submittedCount = await Module.countDocuments({
-      status: { $in: ['Pending Review', 'Needs Changes', 'Approved'] },
-    });
+    const submittedCount = await Module.countDocuments({ status: { $in: submittedStatuses } });
+    const pendingCount = submittedCount;
     const needsChangesCount = await Module.countDocuments({ status: 'Needs Changes' });
     const approvedCount = await Module.countDocuments({ status: 'Approved' });
+    const rejectedCount = await Module.countDocuments({ status: 'Rejected' });
 
     res.json({
       success: true,
       data: modules,
       meta: {
         submittedCount,
+        pendingCount,
         needsChangesCount,
         approvedCount,
-        totalUnderReview: submittedCount,
+        rejectedCount,
+        totalUnderReview: submittedCount + needsChangesCount + approvedCount,
+        totalAwaitingReview: pendingCount,
       },
     });
   } catch (error) {

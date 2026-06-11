@@ -9,6 +9,7 @@ import {
 const STATUS_CONFIG = {
   Active: { className: 'active', icon: CheckmarkFilled, color: '#24a148' },
   Draft: { className: 'draft', icon: CircleFilled, color: '#6f6f6f' },
+  Submitted: { className: 'pending', icon: CircleFilled, color: '#6f6f6f' },
   'Pending Review': { className: 'pending', icon: CircleFilled, color: '#6f6f6f' },
   'Needs Changes': { className: 'needs-changes', icon: WarningAltFilled, color: '#f1c21b' },
   Approved: { className: 'approved', icon: CheckmarkFilled, color: '#24a148' },

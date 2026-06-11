@@ -45,7 +45,7 @@ const moduleSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ['Draft', 'Active', 'Pending Review', 'Needs Changes', 'Approved', 'Rejected'],
+      enum: ['Draft', 'Submitted', 'Pending Review', 'Active', 'Needs Changes', 'Approved', 'Rejected'],
       default: 'Draft',
     },
     reviewStatus: {

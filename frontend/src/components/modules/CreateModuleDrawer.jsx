@@ -114,8 +114,8 @@ const CreateModuleDrawer = ({ open, onClose, onSuccess, editData }) => {
         loading,
       }}
       primaryAction={{
-        label: isEdit ? 'Update Module' : 'Create and Open',
-        onClick: () => handleSubmit('create'),
+        label: isEdit ? 'Update Module' : 'Create and Submit',
+        onClick: () => handleSubmit(isEdit ? 'draft' : 'submit'),
         loading,
         disabled: !form.moduleName.trim(),
       }}

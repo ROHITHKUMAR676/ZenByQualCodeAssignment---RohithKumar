@@ -1,103 +1,111 @@
 import React from 'react';
-import { Tag, Button } from '@carbon/react';
+import { Button } from '@carbon/react';
+import { Launch } from '@carbon/icons-react';
 import SideDrawer from '../shared/SideDrawer';
 import StatusBadge from '../shared/StatusBadge';
 import dayjs from 'dayjs';
 
-const ViewModuleDrawer = ({ open, onClose, module, onEdit }) => {
+const getGeneratedSummary = (module) => {
+  if (module.summary) return module.summary;
+
+  const moduleName = module.moduleName || 'This module';
+  const audience = module.targetGroup ? ` for ${module.targetGroup}` : '';
+  const category = module.category ? ` in ${module.category}` : '';
+  const service = module.serviceComponent ? ` through a ${module.serviceComponent.toLowerCase()} format` : '';
+
+  return `${moduleName} supports learners${audience}${category}${service}. It focuses on guided activities, reflection, and practical takeaways that help participants build awareness and confidence.`;
+};
+
+const getGuideNotes = (module) => {
+  if (module.notes?.length > 0) {
+    return module.notes.map((note) => note.text || note);
+  }
+
+  return [
+    `Helps participants understand ${module.category || 'the topic'} through guided reflection and practical examples.`,
+    `Uses structured activities and discussion prompts to build awareness and confidence.`,
+    `Encourages participants to apply the learning in everyday situations with support.`,
+  ];
+};
+
+const ViewModuleDrawer = ({ open, onClose, module, onEdit, onDuplicate }) => {
   if (!module) return null;
 
   const publishDate = module.publishDate
     ? dayjs(module.publishDate).format('DD MMM YYYY')
     : '-';
+  const guideNotes = getGuideNotes(module);
 
   return (
     <SideDrawer
       open={open}
       onClose={onClose}
       title={module.moduleName}
-      size="md"
-      primaryAction={{
-        label: 'Open Module Editor',
-        onClick: onEdit,
-      }}
+      size="sm"
+      className="module-view-drawer"
+      bodyClassName="module-view-drawer__body"
+      compact
+      footerContent={(
+        <div className="module-view-drawer__footer">
+          <Button kind="primary" renderIcon={Launch} onClick={onEdit}>
+            Open Module Editor
+          </Button>
+          <button className="module-view-drawer__duplicate" type="button" onClick={onDuplicate}>
+            Duplicate module
+          </button>
+        </div>
+      )}
     >
-      <div style={{ padding: '1.5rem' }}>
-        {/* Summary */}
-        <div className="drawer-section">
-          <div className="drawer-section__title drawer-section__title--with-ai">
+      <div>
+        <section className="module-view-drawer__summary">
+          <div className="module-view-drawer__section-title module-view-drawer__section-title--with-ai">
             <span>Summary</span>
             <span className="ai-pill">AI</span>
           </div>
-          <p className="drawer-summary">
-            {module.summary || 'No generated summary available.'}
+          <p className="module-view-drawer__summary-text">
+            {getGeneratedSummary(module)}
           </p>
-        </div>
+        </section>
 
-        {/* Tags */}
-        {module.tags?.length > 0 && (
-          <div className="drawer-section">
-            <p className="drawer-section__title">Tags</p>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.25rem' }}>
-              {module.tags.map((tag) => (
-                <Tag key={tag} type="blue" size="sm">{tag}</Tag>
-              ))}
-            </div>
+        <details className="module-view-drawer__accordion">
+          <summary>Module</summary>
+          <div className="module-view-drawer__accordion-content">
+            <p>{module.serviceComponent || 'Module details will appear here.'}</p>
           </div>
-        )}
+        </details>
 
-        {/* Facilitator Guide / Notes */}
-        <div className="drawer-section">
-          <p className="drawer-section__title">Facilitator Guide</p>
-          {module.notes?.length > 0 ? (
-            <ul style={{ paddingLeft: '1rem', margin: 0 }}>
-              {module.notes.map((note, i) => (
-                <li key={i} style={{ fontSize: '0.875rem', color: '#525252', marginBottom: '0.5rem' }}>
-                  {note.text || note}
-                </li>
+        <details className="module-view-drawer__accordion" open>
+          <summary>Facilitator guide</summary>
+          <div className="module-view-drawer__accordion-content">
+            <ul>
+              {guideNotes.map((note, i) => (
+                <li key={`${note}-${i}`}>{note}</li>
               ))}
             </ul>
-          ) : (
-            <p style={{ fontSize: '0.875rem', color: '#8d8d8d' }}>No notes added yet.</p>
-          )}
-        </div>
+          </div>
+        </details>
 
-        {/* Overview / Metadata */}
-        <div className="drawer-section">
-          <p className="drawer-section__title">Overview</p>
-          <div className="drawer-meta-grid">
-            <div className="drawer-meta-item">
-              <p className="drawer-meta-item__label">Publish Date</p>
-              <p className="drawer-meta-item__value">{publishDate}</p>
+        <section className="module-view-drawer__overview">
+          <h3>Overview</h3>
+          <div className="module-view-drawer__meta">
+            <div>
+              <span>Publish Date</span>
+              <strong>{publishDate}</strong>
             </div>
-            <div className="drawer-meta-item">
-              <p className="drawer-meta-item__label">Author</p>
-              <p className="drawer-meta-item__value">{module.author || '-'}</p>
+            <div>
+              <span>Author</span>
+              <strong>{module.author || '-'}</strong>
             </div>
-            <div className="drawer-meta-item">
-              <p className="drawer-meta-item__label">Category</p>
-              <p className="drawer-meta-item__value">{module.category || '-'}</p>
+            <div>
+              <span>Category</span>
+              <strong>{module.category || '-'}</strong>
             </div>
-            <div className="drawer-meta-item">
-              <p className="drawer-meta-item__label">Target Group</p>
-              <p className="drawer-meta-item__value">{module.targetGroup || '-'}</p>
-            </div>
-            <div className="drawer-meta-item">
-              <p className="drawer-meta-item__label">Program</p>
-              <p className="drawer-meta-item__value">{module.program || '-'}</p>
-            </div>
-            <div className="drawer-meta-item">
-              <p className="drawer-meta-item__label">Status</p>
+            <div>
+              <span>Status</span>
               <StatusBadge status={module.status} />
             </div>
-            {module.serviceComponent && (
-              <div className="drawer-meta-item">
-                <p className="drawer-meta-item__label">Service Component</p>
-                <p className="drawer-meta-item__value">{module.serviceComponent}</p>
-              </div>
-            )}
           </div>
-        </div>
+        </section>
       </div>
     </SideDrawer>
   );

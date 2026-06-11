@@ -51,8 +51,7 @@ export const AUTHORS = [
 
 export const STATUSES = [
   { value: 'Draft', label: 'Draft' },
-  { value: 'Active', label: 'Active' },
-  { value: 'Pending Review', label: 'Pending Review' },
+  { value: 'Submitted', label: 'Submitted' },
   { value: 'Needs Changes', label: 'Needs Changes' },
   { value: 'Approved', label: 'Approved' },
   { value: 'Rejected', label: 'Rejected' },

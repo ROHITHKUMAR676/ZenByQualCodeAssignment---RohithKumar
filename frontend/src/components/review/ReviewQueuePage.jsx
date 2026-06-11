@@ -10,12 +10,6 @@ import {
   TableExpandHeader,
   TableExpandRow,
   TableExpandedRow,
-  TableToolbar,
-  TableToolbarContent,
-  TableToolbarSearch,
-  Button,
-  Select,
-  SelectItem,
   Breadcrumb,
   BreadcrumbItem,
   Loading,
@@ -27,15 +21,17 @@ import {
 import {
   WarningAltFilled,
   CheckmarkFilled,
+  ChevronDown,
+  Filter,
   Renew,
+  Search,
 } from '@carbon/icons-react';
-import { useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';
 import { modulesService } from '../../services/api';
 import StatusBadge from '../shared/StatusBadge';
 import { PROGRAMS } from '../../utils/constants';
 
-const TABLE_HEADERS = [
+const USER_TABLE_HEADERS = [
   { key: 'moduleName', header: 'Module Name' },
   { key: 'approver', header: 'Approver' },
   { key: 'category', header: 'Category' },
@@ -43,19 +39,37 @@ const TABLE_HEADERS = [
   { key: 'publishDate', header: 'Publish Date' },
 ];
 
-const TABS = [
+const ADMIN_TABLE_HEADERS = [
+  { key: 'moduleName', header: 'Module Name' },
+  { key: 'author', header: 'Author' },
+  { key: 'category', header: 'Category' },
+  { key: 'status', header: 'Status' },
+  { key: 'publishDate', header: 'Publish Date' },
+];
+
+const USER_TABS = [
   { key: 'submitted', label: 'Submitted' },
   { key: 'needsChanges', label: 'Needs Changes' },
   { key: 'approved', label: 'Approved' },
 ];
 
-const ReviewQueuePage = () => {
-  const navigate = useNavigate();
+const ADMIN_TABS = [
+  { key: 'pending', label: 'Pending' },
+  { key: 'approved', label: 'Approved' },
+  { key: 'rejected', label: 'Rejected' },
+];
+
+const submittedStatuses = ['Submitted', 'Pending Review'];
+
+const ReviewQueuePage = ({ role = 'user' }) => {
+  const isAdmin = role === 'admin';
+  const tabs = isAdmin ? ADMIN_TABS : USER_TABS;
+  const tableHeaders = isAdmin ? ADMIN_TABLE_HEADERS : USER_TABLE_HEADERS;
   const [modules, setModules] = useState([]);
   const [meta, setMeta] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [activeTab, setActiveTab] = useState('submitted');
+  const [activeTab, setActiveTab] = useState(isAdmin ? 'pending' : 'submitted');
   const [programFilter, setProgramFilter] = useState('');
   const [search, setSearch] = useState('');
 
@@ -64,6 +78,7 @@ const ReviewQueuePage = () => {
     setError('');
     try {
       const params = {
+        role,
         status: activeTab,
         ...(programFilter && { program: programFilter }),
         ...(search && { search }),
@@ -76,7 +91,7 @@ const ReviewQueuePage = () => {
     } finally {
       setLoading(false);
     }
-  }, [activeTab, programFilter, search]);
+  }, [activeTab, programFilter, role, search]);
 
   useEffect(() => {
     const t = setTimeout(fetchReviewQueue, 300);
@@ -95,15 +110,23 @@ const ReviewQueuePage = () => {
   const rows = modules.map((mod) => ({
     id: mod._id,
     moduleName: mod.moduleName,
-    approver: mod.author,
+    approver: mod.approver || 'Saranya Loganathan',
+    author: mod.author,
     category: mod.category || '-',
-    status: mod.status,
+    status: submittedStatuses.includes(mod.status) ? 'Pending Review' : mod.status,
     publishDate: mod.publishDate ? dayjs(mod.publishDate).format('DD MMM YYYY') : '-',
     _raw: mod,
   }));
 
+  const pendingCount = meta.pendingCount ?? meta.submittedCount ?? 0;
+  const submittedCount = meta.submittedCount ?? pendingCount;
   const needsChangesCount = meta.needsChangesCount ?? 0;
   const approvedCount = meta.approvedCount ?? 0;
+  const rejectedCount = meta.rejectedCount ?? 0;
+  const summaryCount = isAdmin ? pendingCount : (meta.totalUnderReview ?? submittedCount);
+  const statsText = isAdmin
+    ? `Pending: ${pendingCount} | Approved: ${approvedCount} | Rejected: ${rejectedCount}`
+    : `Submitted: ${submittedCount} | Needs Changes: ${needsChangesCount} | Approved: ${approvedCount}`;
 
   return (
     <div>
@@ -122,7 +145,9 @@ const ReviewQueuePage = () => {
           <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
             <span style={{ fontSize: '0.75rem', color: '#525252' }}>
               Review Summary<br />
-              <span style={{ color: '#161616' }}>{meta.totalUnderReview ?? 0} modules under review</span>
+              <span style={{ color: '#161616' }}>
+                {summaryCount} modules {isAdmin ? 'awaiting review' : 'under review'}
+              </span>
             </span>
             <div className="review-summary">
               <div className="review-count">
@@ -137,32 +162,26 @@ const ReviewQueuePage = () => {
           </div>
         </div>
 
-        {/* Stats */}
-        <p style={{ fontSize: '0.875rem', color: '#525252', marginBottom: '1rem' }}>
-          Submitted: {meta.submittedCount ?? 0} | Needs Changes: {needsChangesCount} | Approved: {approvedCount}
-        </p>
-
         {/* Tabs */}
-        <div style={{ display: 'flex', gap: '0', marginBottom: '0' }}>
-          {TABS.map((tab) => (
+        <div className="modules-tabs review-tabs" role="tablist" aria-label="Review queue views">
+          {tabs.map((tab) => (
             <button
               key={tab.key}
               onClick={() => setActiveTab(tab.key)}
-              style={{
-                padding: '0.625rem 1rem',
-                border: 'none',
-                borderBottom: activeTab === tab.key ? '2px solid #0f62fe' : '2px solid transparent',
-                background: 'none',
-                cursor: 'pointer',
-                fontSize: '0.875rem',
-                fontWeight: activeTab === tab.key ? 600 : 400,
-                color: activeTab === tab.key ? '#0f62fe' : '#525252',
-              }}
+              className={`modules-tabs__button${activeTab === tab.key ? ' modules-tabs__button--active' : ''}`}
+              type="button"
+              role="tab"
+              aria-selected={activeTab === tab.key}
             >
               {tab.label}
             </button>
           ))}
         </div>
+
+        {/* Stats */}
+        <p className="module-counts">
+          {statsText}
+        </p>
 
         {error && (
           <InlineNotification
@@ -174,55 +193,65 @@ const ReviewQueuePage = () => {
           />
         )}
 
-        <DataTable rows={rows} headers={TABLE_HEADERS} isSortable>
+        <DataTable rows={rows} headers={tableHeaders} isSortable>
           {({
             rows: tableRows,
             headers,
             getHeaderProps,
             getRowProps,
             getTableProps,
-            getToolbarProps,
             getTableContainerProps,
             onInputChange,
           }) => (
             <div {...getTableContainerProps()}>
-              <TableToolbar {...getToolbarProps()}>
-                <TableToolbarContent>
-                  <Select
+              <div className="modules-table-toolbar">
+                <button
+                  className="modules-table-toolbar__icon-button"
+                  type="button"
+                  aria-label="Filter modules"
+                >
+                  <Filter size={24} />
+                </button>
+
+                <label className="modules-table-toolbar__select-wrap" htmlFor="review-program-filter">
+                  <select
                     id="review-program-filter"
-                    labelText=""
-                    hideLabel
+                    className="modules-table-toolbar__select"
                     value={programFilter}
                     onChange={(e) => setProgramFilter(e.target.value)}
-                    style={{ minWidth: '160px' }}
-                    size="sm"
+                    aria-label="Program filter"
                   >
-                    <SelectItem value="" text="All Programs" />
+                    <option value="">All Programs</option>
                     {PROGRAMS.map((p) => (
-                      <SelectItem key={p.value} value={p.value} text={p.label} />
+                      <option key={p.value} value={p.value}>{p.label}</option>
                     ))}
-                  </Select>
+                  </select>
+                  <ChevronDown size={20} aria-hidden="true" />
+                </label>
 
-                  <TableToolbarSearch
+                <div className="modules-table-toolbar__search">
+                  <Search size={24} aria-hidden="true" />
+                  <input
+                    type="search"
+                    value={search}
                     placeholder="Find module by name, author or category"
                     onChange={(e) => {
                       setSearch(e.target.value);
                       onInputChange(e);
                     }}
-                    value={search}
-                    persistent
+                    aria-label="Search review queue"
                   />
+                </div>
 
-                  <Button
-                    kind="ghost"
-                    size="sm"
-                    renderIcon={Renew}
-                    iconDescription="Refresh"
-                    hasIconOnly
-                    onClick={fetchReviewQueue}
-                  />
-                </TableToolbarContent>
-              </TableToolbar>
+                <button
+                  className="modules-table-toolbar__icon-button modules-table-toolbar__icon-button--right"
+                  type="button"
+                  onClick={fetchReviewQueue}
+                  aria-label="Refresh modules"
+                >
+                  <Renew size={24} />
+                </button>
+              </div>
 
               <Table {...getTableProps()} size="md">
                 <TableHead>
@@ -233,19 +262,19 @@ const ReviewQueuePage = () => {
                         {header.header}
                       </TableHeader>
                     ))}
-                    <TableHeader />
+                    {isAdmin && <TableHeader />}
                   </TableRow>
                 </TableHead>
                 <TableBody>
                   {loading ? (
                     <TableRow>
-                      <TableCell colSpan={headers.length + 2}>
+                      <TableCell colSpan={headers.length + (isAdmin ? 2 : 1)}>
                         <Loading small description="Loading..." withOverlay={false} />
                       </TableCell>
                     </TableRow>
                   ) : tableRows.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={headers.length + 2}>
+                      <TableCell colSpan={headers.length + (isAdmin ? 2 : 1)}>
                         <div style={{ textAlign: 'center', padding: '2rem', color: '#6f6f6f' }}>
                           No modules in this queue.
                         </div>
@@ -266,31 +295,39 @@ const ReviewQueuePage = () => {
                                 )}
                               </TableCell>
                             ))}
-                            <TableCell>
-                              <OverflowMenu flipped size="sm" iconDescription="Options">
-                                <OverflowMenuItem
-                                  itemText="Approve"
-                                  onClick={() => handleStatusUpdate(row.id, 'Approved')}
-                                />
-                                <OverflowMenuItem
-                                  itemText="Needs Changes"
-                                  onClick={() => handleStatusUpdate(row.id, 'Needs Changes')}
-                                />
-                                <OverflowMenuItem
-                                  itemText="Reject"
-                                  hasDivider
-                                  isDelete
-                                  onClick={() => handleStatusUpdate(row.id, 'Rejected')}
-                                />
-                              </OverflowMenu>
-                            </TableCell>
+                            {isAdmin && (
+                              <TableCell>
+                                <OverflowMenu flipped size="sm" iconDescription="Options">
+                                  <OverflowMenuItem
+                                    itemText="Approve"
+                                    onClick={() => handleStatusUpdate(row.id, 'Approved')}
+                                  />
+                                  <OverflowMenuItem
+                                    itemText="Needs Changes"
+                                    onClick={() => handleStatusUpdate(row.id, 'Needs Changes')}
+                                  />
+                                  <OverflowMenuItem
+                                    itemText="Reject"
+                                    hasDivider
+                                    isDelete
+                                    onClick={() => handleStatusUpdate(row.id, 'Rejected')}
+                                  />
+                                </OverflowMenu>
+                              </TableCell>
+                            )}
                           </TableExpandRow>
                           {row.isExpanded && rawMod && (
-                            <TableExpandedRow colSpan={headers.length + 2}>
+                            <TableExpandedRow colSpan={headers.length + (isAdmin ? 2 : 1)}>
                               <div className="expanded-row-content">
                                 <p className="expanded-row-content__summary">
                                   {rawMod.summary || 'No summary available.'}
                                 </p>
+                                {rawMod.serviceComponent && (
+                                  <div className="expanded-meta__item" style={{ marginBottom: '0.75rem' }}>
+                                    <span className="expanded-meta__label">Service Component</span>
+                                    <span className="expanded-meta__value">{rawMod.serviceComponent}</span>
+                                  </div>
+                                )}
                                 {rawMod.tags?.length > 0 && (
                                   <div style={{ display: 'flex', gap: '0.25rem', flexWrap: 'wrap' }}>
                                     {rawMod.tags.map((t) => (

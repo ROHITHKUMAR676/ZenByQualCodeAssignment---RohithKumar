@@ -14,6 +14,10 @@ const SideDrawer = ({
   primaryAction,
   secondaryAction,
   size = 'md', // 'sm' | 'md' | 'lg'
+  className = '',
+  bodyClassName = '',
+  footerContent,
+  compact = false,
 }) => {
   const widthMap = { sm: '400px', md: '480px', lg: '640px' };
 
@@ -39,6 +43,7 @@ const SideDrawer = ({
 
       {/* Panel */}
       <div
+        className={`side-drawer ${className}`.trim()}
         role="dialog"
         aria-modal="true"
         aria-label={title}
@@ -58,14 +63,14 @@ const SideDrawer = ({
       >
         {/* Header */}
         <div style={{
-          padding: '1.25rem 1.5rem 1rem',
+          padding: compact ? '1rem 1rem 0.875rem' : '1.25rem 1.5rem 1rem',
           borderBottom: '1px solid #e0e0e0',
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'flex-start',
         }}>
           <div>
-            <h2 style={{ fontSize: '1.25rem', fontWeight: 600, margin: 0, color: '#161616' }}>
+            <h2 style={{ fontSize: compact ? '1rem' : '1.25rem', fontWeight: compact ? 400 : 600, margin: 0, color: '#161616' }}>
               {title}
             </h2>
             {subtitle && (
@@ -86,12 +91,14 @@ const SideDrawer = ({
         </div>
 
         {/* Body */}
-        <div style={{ flex: 1, overflowY: 'auto' }}>
+        <div className={bodyClassName} style={{ flex: 1, overflowY: 'auto' }}>
           {children}
         </div>
 
         {/* Footer */}
-        {(primaryAction || secondaryAction) && (
+        {footerContent ? (
+          footerContent
+        ) : (primaryAction || secondaryAction) && (
           <div style={{
             padding: '1rem 1.5rem',
             borderTop: '1px solid #e0e0e0',

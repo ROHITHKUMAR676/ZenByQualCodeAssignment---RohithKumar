@@ -14,7 +14,7 @@ const validateCreateModule = [
     .withMessage('Summary cannot exceed 100 characters'),
   body('status')
     .optional()
-    .isIn(['Draft', 'Active', 'Pending Review', 'Needs Changes', 'Approved', 'Rejected'])
+    .isIn(['Draft', 'Submitted', 'Pending Review', 'Active', 'Needs Changes', 'Approved', 'Rejected'])
     .withMessage('Invalid status value'),
   body('tags').optional().isArray().withMessage('Tags must be an array'),
 ];
@@ -31,7 +31,7 @@ const validateUpdateModule = [
     .withMessage('Summary cannot exceed 100 characters'),
   body('status')
     .optional()
-    .isIn(['Draft', 'Active', 'Pending Review', 'Needs Changes', 'Approved', 'Rejected'])
+    .isIn(['Draft', 'Submitted', 'Pending Review', 'Active', 'Needs Changes', 'Approved', 'Rejected'])
     .withMessage('Invalid status value'),
   body('tags').optional().isArray().withMessage('Tags must be an array'),
 ];
