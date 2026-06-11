@@ -1,7 +1,9 @@
 import axios from 'axios';
 
 const api = axios.create({
-  baseURL: '/api',
+  baseURL:
+    import.meta.env.VITE_API_URL ||
+    'https://zenbyqualcodeassignment-rohithkumar.onrender.com/api',
   headers: { 'Content-Type': 'application/json' },
 });
 

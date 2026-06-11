@@ -12,7 +12,11 @@ connectDB();
 
 // Middleware
 app.use(cors({
-  origin: ['http://localhost:5173', 'http://localhost:3000'],
+  origin: [
+    'http://localhost:5173',
+    'http://localhost:3000',
+    'https://zen-by-qual-code-assignment-rohith.vercel.app'
+  ],
   credentials: true,
 }));
 app.use(express.json());
